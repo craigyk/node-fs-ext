@@ -49,7 +49,7 @@ struct store_data_t {
   int oper;
   off_t offset;
   int result;
-  error_t errorno;
+  int errorno;
   struct utimbuf utime_buf;
 #ifndef _WIN32
   struct statvfs statvfs_buf;
