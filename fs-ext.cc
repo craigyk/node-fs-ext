@@ -48,13 +48,13 @@ struct store_data_t {
   int fd;
   int oper;
   off_t offset;
+  int result;
+  error_t errorno;
   struct utimbuf utime_buf;
 #ifndef _WIN32
   struct statvfs statvfs_buf;
 #endif
   char *path;
-  int error;
-  int result;
 };
 
 #ifndef _WIN32
@@ -79,10 +79,12 @@ enum
   FS_OP_STATVFS
 };
 
-static void EIO_After(uv_work_t *req) {
+static void After(uv_work_t *req, int status) {
   HandleScope scope;
 
   store_data_t *store_data = static_cast<store_data_t *>(req->data);
+
+  uv_unref((uv_handle_t*) req);
 
   // there is always at least one argument. "error"
   int argc = 1;
@@ -94,7 +96,7 @@ static void EIO_After(uv_work_t *req) {
   // for a success, which is possible.
   if (store_data->result == -1) {
     // If the request doesn't have a path parameter set.
-    argv[0] = ErrnoException(store_data->error);
+    argv[0] = ErrnoException(store_data->errorno);
   } else {
     // error value is empty or null for non-error.
     argv[0] = Local<Value>::New(Null());
@@ -131,9 +133,6 @@ static void EIO_After(uv_work_t *req) {
       default:
         assert(0 && "Unhandled op type value");
     }
-
-    uv_unref((uv_handle_t *) req);
-    delete req;
   }
 
   TryCatch try_catch;
@@ -147,6 +146,8 @@ static void EIO_After(uv_work_t *req) {
   // Dispose of the persistent handle
   cb_destroy(store_data->cb);
   delete store_data;
+
+  delete req;
 }
 
 static void EIO_StatVFS(uv_work_t *req) {
@@ -170,7 +171,7 @@ static void EIO_Seek(uv_work_t *req) {
 
   if (offs == -1) {
     seek_data->result = -1;
-    seek_data->error = errno;
+    seek_data->errorno = errno;
   } else {
     seek_data->offset = offs;
   }
@@ -187,7 +188,7 @@ static void EIO_Flock(uv_work_t *req) {
 #endif
   
   flock_data->result = i;
-  flock_data->error = errno;
+  flock_data->errorno = errno;
 
 }
 
@@ -259,7 +260,7 @@ static Handle<Value> Flock(const Arguments& args) {
     flock_data->cb = cb_persist(args[2]);
     uv_work_t *req = new uv_work_t;
     req->data = flock_data;
-    uv_queue_work(uv_default_loop(), req, EIO_Flock, EIO_After);
+    uv_queue_work(uv_default_loop(), req, EIO_Flock, After);
     uv_ref((uv_handle_t*) &req);
     return Undefined();
   } else {
@@ -327,9 +328,8 @@ static Handle<Value> Seek(const Arguments& args) {
 
   uv_work_t *req = new uv_work_t;
   req->data = seek_data;
-  uv_queue_work(uv_default_loop(), req, EIO_Seek, EIO_After);
+  uv_queue_work(uv_default_loop(), req, EIO_Seek, After);
   uv_ref((uv_handle_t*) &req);
-
   return Undefined();
 }
 
@@ -342,7 +342,7 @@ static void EIO_UTime(uv_work_t *req) {
 
   if (i == (off_t)-1) {
     utime_data->result = -1;
-    utime_data->error = errno;
+    utime_data->errorno = errno;
   } else {
     utime_data->result = i;
   }
@@ -387,9 +387,8 @@ static Handle<Value> UTime(const Arguments& args) {
 
   uv_work_t *req = new uv_work_t;
   req->data = utime_data;
-  uv_queue_work(uv_default_loop(), req, EIO_UTime, EIO_After);
+  uv_queue_work(uv_default_loop(), req, EIO_UTime, After);
   uv_ref((uv_handle_t*) &req);
-
   return Undefined();
 }
 
@@ -438,14 +437,13 @@ static Handle<Value> StatVFS(const Arguments& args) {
 
   uv_work_t *req = new uv_work_t;
   req->data = statvfs_data;
-  uv_queue_work(uv_default_loop(), req, EIO_StatVFS, EIO_After);
+  uv_queue_work(uv_default_loop(), req, EIO_StatVFS, After);
   uv_ref((uv_handle_t*) &req);
-
   return Undefined();
 }
 
-extern "C" void
-init (Handle<Object> target)
+extern "C" {
+void init (Handle<Object> target)
 {
   HandleScope scope;
 
@@ -493,4 +491,7 @@ init (Handle<Object> target)
   f_files_symbol = NODE_PSYMBOL("f_files");
   f_favail_symbol = NODE_PSYMBOL("f_favail");
   f_ffree_symbol = NODE_PSYMBOL("f_ffree");
+}
+
+NODE_MODULE(fs_ext, init)
 }
