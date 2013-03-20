@@ -2,8 +2,13 @@
   "author": "Matt Sergeant <helpme@gmail.com> (http://baudehlo.wordpress.com/)",
   "name": "fs-ext",
   "description": "Extensions to core 'fs' module.",
-  "keywords": ["fs", "filesystem", "flock", "seek"],
-  "version": "0.2.4",
+  "keywords": [
+    "fs",
+    "filesystem",
+    "flock",
+    "seek"
+  ],
+  "version": "0.2.5",
   "homepage": "https://github.com/baudehlo/node-fs-ext/",
   "repository": {
     "type": "git",
@@ -13,15 +18,18 @@
   "engines": {
     "node": ">= v0.4.0"
   },
-  "dependencies": { },
-  "licenses": [ {
-    "type": "MIT"
-  } ],
+  "dependencies": {},
+  "licenses": [
+    {
+      "type": "MIT"
+    }
+  ],
   "bugs": {
-    "mail" : "helpme@gmail.com",
-    "web" : "https://github.com/baudehlo/node-fs-ext/issues"
+    "mail": "helpme@gmail.com",
+    "web": "https://github.com/baudehlo/node-fs-ext/issues"
   },
-  "scripts": { 
+  "scripts": {
     "install": "node-gyp configure build",
-    "test": "./run_tests" }
+    "test": "./run_tests"
+  }
 }
